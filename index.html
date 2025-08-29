@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة السلم والثعبان - المشتقات العربية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Amiri', serif;
+        }
+        
+        .board-cell {
+            transition: all 0.3s ease;
+            position: relative;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .board-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .player-piece {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 20;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            transition: all 0.5s ease;
+        }
+        
+        .player-1 { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .player-2 { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .player-3 { background: linear-gradient(135deg, #10b981, #059669); }
+        .player-4 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        
+        .multiple-players {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            z-index: 20;
+        }
+        
+        .multiple-players .player-piece {
+            width: 14px;
+            height: 14px;
+            font-size: 8px;
+            position: relative;
+            top: auto;
+            left: auto;
+            transform: none;
+        }
+        
+        .snake {
+            position: absolute;
+            z-index: 10;
+            font-size: 24px;
+            animation: wiggle 2s ease-in-out infinite;
+        }
+        
+        .ladder {
+            position: absolute;
+            z-index: 10;
+            font-size: 20px;
+            animation: shine 3s ease-in-out infinite;
+        }
+        
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+        
+        @keyframes shine {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        
+        .celebration {
+            animation: celebrate 1s ease-in-out;
+        }
+        
+        @keyframes celebrate {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.1) rotate(5deg); }
+            75% { transform: scale(1.1) rotate(-5deg); }
+        }
+        
+        .question-modal {
+            backdrop-filter: blur(15px);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        }
+        
+        .board-gradient {
+            background: linear-gradient(45deg, #ffecd2 0%, #fcb69f 100%);
+        }
+        
+        .cell-even {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        
+        .cell-odd {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        }
+        
+        .snake-cell {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        }
+        
+        .ladder-cell {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        
+        .winner-animation {
+            animation: winner 2s ease-in-out infinite;
+        }
+        
+        @keyframes winner {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.2) rotate(10deg); }
+            75% { transform: scale(1.2) rotate(-10deg); }
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-white mb-2">🐍 السلم والثعبان - المشتقات العربية 🪜</h1>
+            <p class="text-xl text-white/90">تعلم المشتقات واصل للمربع 100!</p>
+        </div>
+
+        <!-- Players Setup -->
+        <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-6 mb-6 text-white" id="playerSetup">
+            <h3 class="text-2xl font-bold mb-4 text-center">🎮 إعداد اللاعبين</h3>
+            <div class="flex justify-center gap-4 mb-4">
+                <button onclick="game.setPlayerCount(2)" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-6 py-3 rounded-xl font-bold transform hover:scale-105 transition-all">لاعبان</button>
+                <button onclick="game.setPlayerCount(3)" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-6 py-3 rounded-xl font-bold transform hover:scale-105 transition-all">3 لاعبين</button>
+                <button onclick="game.setPlayerCount(4)" class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 px-6 py-3 rounded-xl font-bold transform hover:scale-105 transition-all">4 لاعبين</button>
+            </div>
+            <div class="text-center text-sm opacity-90">
+                <p>🎯 أجب على الأسئلة بشكل صحيح لتحصل على فرصة رمي النرد!</p>
+            </div>
+        </div>
+
+        <!-- Game Stats -->
+        <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-4 mb-6 text-white" id="gameStats" style="display: none;">
+            <div class="mb-4 text-center">
+                <div class="text-lg font-bold mb-2">
+                    🎯 دور اللاعب: <span id="currentPlayerName" class="text-2xl text-yellow-300"></span>
+                </div>
+                <div class="text-sm opacity-90">أجب على السؤال أولاً لتتمكن من رمي النرد!</div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="playersStats">
+                <!-- Player stats will be generated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div class="board-gradient rounded-3xl p-6 mb-6 shadow-2xl">
+            <div class="grid grid-cols-10 gap-1 aspect-square" id="gameBoard">
+                <!-- Board cells will be generated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="text-center mb-6">
+            <button id="startQuestion" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-4 px-8 rounded-full text-xl shadow-lg transform hover:scale-105 transition-all duration-200 mb-4">
+                📚 ابدأ بالسؤال!
+            </button>
+            <button id="rollDice" class="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-4 px-8 rounded-full text-xl shadow-lg transform hover:scale-105 transition-all duration-200" style="display: none;">
+                🎲 ارمِ النرد!
+            </button>
+            <div class="mt-4">
+                <div id="diceResult" class="text-2xl font-bold text-white"></div>
+                <div id="encouragement" class="text-lg text-yellow-300 mt-2"></div>
+            </div>
+        </div>
+
+        <!-- Question Modal -->
+        <div id="questionModal" class="fixed inset-0 question-modal bg-black/50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-3xl p-8 max-w-2xl mx-4 shadow-2xl">
+                <div class="text-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">📚 سؤال المشتقات</h3>
+                    <div id="questionText" class="text-lg text-gray-700 leading-relaxed"></div>
+                </div>
+                
+                <div id="questionOptions" class="space-y-3 mb-6">
+                    <!-- Options will be generated by JavaScript -->
+                </div>
+                
+                <div id="questionFeedback" class="text-center hidden">
+                    <div id="feedbackText" class="text-lg font-bold mb-4"></div>
+                    <div id="explanationText" class="text-gray-700 mb-4"></div>
+                    <button id="continueBtn" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-full">
+                        متابعة اللعب
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Winner Modal -->
+        <div id="winnerModal" class="fixed inset-0 question-modal bg-black/50 hidden items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl p-8 max-w-md mx-4 shadow-2xl text-center">
+                <div class="text-6xl mb-4">🏆</div>
+                <h3 class="text-3xl font-bold text-white mb-4">مبروك!</h3>
+                <div id="winnerText" class="text-xl text-white mb-6"></div>
+                <button onclick="location.reload()" class="bg-white text-orange-500 font-bold py-3 px-6 rounded-full hover:bg-gray-100 transition-all">
+                    لعبة جديدة
+                </button>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-white">
+            <h3 class="text-xl font-bold mb-3">📚 كيفية اللعب:</h3>
+            <div class="grid md:grid-cols-2 gap-4 text-sm">
+                <ul class="space-y-2">
+                    <li>• اضغط "ابدأ بالسؤال" للحصول على سؤال</li>
+                    <li>• أجب بشكل صحيح لتحصل على فرصة رمي النرد</li>
+                    <li>• 🪜 السلالم ترفعك للأعلى</li>
+                    <li>• 🐍 الثعابين تنزلك للأسفل</li>
+                </ul>
+                <ul class="space-y-2">
+                    <li>• الهدف: الوصول للمربع 100 أولاً</li>
+                    <li>• تعلم اسم الفاعل والمفعول والصفة المشبهة</li>
+                    <li>• كل إجابة صحيحة = 10 نقاط</li>
+                    <li>• استمتع بالتعلم والمنافسة!</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SnakesAndLaddersGame {
+            constructor() {
+                this.players = [];
+                this.currentPlayerIndex = 0;
+                this.gameStarted = false;
+                this.boardSize = 100;
+                this.currentQuestion = null;
+                this.canRollDice = false;
+                
+                // Snakes (head -> tail)
+                this.snakes = {
+                    98: 78, 95: 75, 87: 24, 73: 53, 62: 19, 54: 34
+                };
+                
+                // Ladders (bottom -> top)
+                this.ladders = {
+                    4: 14, 9: 31, 21: 42, 28: 84, 51: 67, 80: 99
+                };
+                
+                this.questions = [
+                    {
+                        question: "ما هو اسم الفاعل من الفعل 'كتب'؟",
+                        options: ["كاتب", "مكتوب", "كتابة", "مكتب"],
+                        correct: 0,
+                        explanation: "اسم الفاعل من 'كتب' هو 'كاتب' على وزن فاعل، ويدل على من قام بالفعل."
+                    },
+                    {
+                        question: "ما هو اسم المفعول من الفعل 'شرب'؟",
+                        options: ["شارب", "مشروب", "شراب", "شرب"],
+                        correct: 1,
+                        explanation: "اسم المفعول من 'شرب' هو 'مشروب' على وزن مفعول، ويدل على من وقع عليه الفعل."
+                    },
+                    {
+                        question: "أي من التالي يعتبر صفة مشبهة؟",
+                        options: ["كاتب", "جميل", "مكتوب", "أكبر"],
+                        correct: 1,
+                        explanation: "جميل صفة مشبهة تدل على الثبوت والدوام، وهي مشتقة من الفعل 'جمُل'."
+                    },
+                    {
+                        question: "ما هو اسم التفضيل من الفعل 'كبر'؟",
+                        options: ["كبير", "كابر", "أكبر", "مكبر"],
+                        correct: 2,
+                        explanation: "اسم التفضيل من 'كبر' هو 'أكبر' على وزن أفعل، ويدل على المشاركة والزيادة."
+                    },
+                    {
+                        question: "اسم الفاعل من الفعل 'علم' هو:",
+                        options: ["عالم", "معلوم", "علامة", "تعليم"],
+                        correct: 0,
+                        explanation: "اسم الفاعل من 'علم' هو 'عالم' ويدل على من قام بالفعل أو اتصف به."
+                    },
+                    {
+                        question: "ما هي الصفة المشبهة من الفعل 'حسن'؟",
+                        options: ["حاسن", "محسن", "حسن", "أحسن"],
+                        correct: 2,
+                        explanation: "الصفة المشبهة من 'حسن' هي 'حسن' وتدل على صفة ثابتة في الموصوف."
+                    },
+                    {
+                        question: "اسم المفعول من الفعل 'فهم' هو:",
+                        options: ["فاهم", "مفهوم", "فهم", "أفهم"],
+                        correct: 1,
+                        explanation: "اسم المفعول من 'فهم' هو 'مفهوم' ويدل على ما وقع عليه الفعل."
+                    },
+                    {
+                        question: "أي من التالي اسم تفضيل؟",
+                        options: ["جميل", "أجمل", "جامل", "مجمل"],
+                        correct: 1,
+                        explanation: "أجمل اسم تفضيل على وزن أفعل، يدل على المشاركة والزيادة في الجمال."
+                    },
+                    {
+                        question: "ما وزن اسم الفاعل من الفعل الثلاثي؟",
+                        options: ["مفعول", "فاعل", "أفعل", "فعيل"],
+                        correct: 1,
+                        explanation: "اسم الفاعل من الفعل الثلاثي يأتي على وزن 'فاعل' مثل كاتب وقارئ."
+                    },
+                    {
+                        question: "الصفة المشبهة تدل على:",
+                        options: ["الحدوث", "الثبوت والدوام", "التفضيل", "المفعولية"],
+                        correct: 1,
+                        explanation: "الصفة المشبهة تدل على الثبوت والدوام في الموصوف، مثل جميل وكريم."
+                    },
+                    {
+                        question: "اسم المفعول من الفعل 'قرأ' هو:",
+                        options: ["قارئ", "مقروء", "قراءة", "أقرأ"],
+                        correct: 1,
+                        explanation: "اسم المفعول من 'قرأ' هو 'مقروء' ويدل على ما وقع عليه فعل القراءة."
+                    },
+                    {
+                        question: "أي من التالي صفة مشبهة؟",
+                        options: ["كاتب", "مكتوب", "كريم", "أكرم"],
+                        correct: 2,
+                        explanation: "كريم صفة مشبهة تدل على صفة ثابتة في الموصوف وهي من الفعل 'كرُم'."
+                    }
+                ];
+                
+                this.encouragements = [
+                    "ممتاز! أنت تتقدم بشكل رائع! 🌟",
+                    "أحسنت! معرفتك بالمشتقات تتطور! 📚",
+                    "رائع جداً! استمر في هذا الأداء المميز! 🎯",
+                    "بارك الله فيك! إجابة صحيحة! ✨",
+                    "عظيم! أنت تتقن المشتقات العربية! 🏆",
+                    "ممتاز! علمك يزداد مع كل سؤال! 💎",
+                    "أحسنت صنعاً! إجابة موفقة! 🌸",
+                    "رائع! أنت نجم في المشتقات! ⭐"
+                ];
+                
+                this.init();
+            }
+            
+            init() {
+                this.createBoard();
+                this.bindEvents();
+                this.showEncouragement("مرحباً بك في لعبة السلم والثعبان! اختر عدد اللاعبين لبدء المغامرة! 🚀");
+            }
+            
+            setPlayerCount(count) {
+                this.players = [];
+                const playerNames = ['الأحمر', 'الأزرق', 'الأخضر', 'الأصفر'];
+                const playerColors = ['player-1', 'player-2', 'player-3', 'player-4'];
+                
+                for (let i = 0; i < count; i++) {
+                    this.players.push({
+                        id: i + 1,
+                        name: `اللاعب ${playerNames[i]}`,
+                        position: 0,
+                        score: 0,
+                        correctAnswers: 0,
+                        totalQuestions: 0,
+                        color: playerColors[i]
+                    });
+                }
+                
+                this.currentPlayerIndex = 0;
+                this.gameStarted = true;
+                this.canRollDice = false;
+                
+                document.getElementById('playerSetup').style.display = 'none';
+                document.getElementById('gameStats').style.display = 'block';
+                
+                this.updateStats();
+                this.createBoard();
+                this.showEncouragement(`اللعبة بدأت! ${this.getCurrentPlayer().name} ابدأ بالإجابة على السؤال! 🎮`);
+            }
+            
+            getCurrentPlayer() {
+                return this.players[this.currentPlayerIndex];
+            }
+            
+            createBoard() {
+                const board = document.getElementById('gameBoard');
+                board.innerHTML = '';
+                
+                // Create board from 100 to 1 (snake and ladder style)
+                for (let row = 0; row < 10; row++) {
+                    for (let col = 0; col < 10; col++) {
+                        let cellNumber;
+                        
+                        // Calculate cell number based on snake and ladder pattern
+                        if (row % 2 === 0) {
+                            // Even rows: left to right
+                            cellNumber = 100 - (row * 10) - col;
+                        } else {
+                            // Odd rows: right to left
+                            cellNumber = 100 - (row * 10) - (9 - col);
+                        }
+                        
+                        const cell = document.createElement('div');
+                        cell.className = 'board-cell text-center font-bold relative cursor-pointer transition-all duration-200 rounded-lg p-2';
+                        
+                        // Set cell background
+                        if (this.snakes[cellNumber]) {
+                            cell.className += ' snake-cell';
+                        } else if (this.ladders[cellNumber]) {
+                            cell.className += ' ladder-cell';
+                        } else if (cellNumber % 2 === 0) {
+                            cell.className += ' cell-even';
+                        } else {
+                            cell.className += ' cell-odd';
+                        }
+                        
+                        // Special styling for cell 100
+                        if (cellNumber === 100) {
+                            cell.className += ' bg-gradient-to-br from-yellow-400 to-orange-500';
+                        }
+                        
+                        cell.innerHTML = `<div class="text-xs font-bold text-gray-700">${cellNumber}</div>`;
+                        
+                        // Add snakes and ladders
+                        if (this.snakes[cellNumber]) {
+                            const snake = document.createElement('div');
+                            snake.className = 'snake';
+                            snake.innerHTML = '🐍';
+                            snake.style.top = '50%';
+                            snake.style.left = '50%';
+                            snake.style.transform = 'translate(-50%, -50%)';
+                            cell.appendChild(snake);
+                        }
+                        
+                        if (this.ladders[cellNumber]) {
+                            const ladder = document.createElement('div');
+                            ladder.className = 'ladder';
+                            ladder.innerHTML = '🪜';
+                            ladder.style.top = '50%';
+                            ladder.style.left = '50%';
+                            ladder.style.transform = 'translate(-50%, -50%)';
+                            cell.appendChild(ladder);
+                        }
+                        
+                        // Add players to this cell
+                        const playersHere = this.players.filter(player => player.position === cellNumber);
+                        if (playersHere.length > 0) {
+                            if (playersHere.length === 1) {
+                                const playerPiece = document.createElement('div');
+                                playerPiece.className = `player-piece ${playersHere[0].color}`;
+                                playerPiece.textContent = playersHere[0].id;
+                                playerPiece.style.top = '5px';
+                                playerPiece.style.right = '5px';
+                                cell.appendChild(playerPiece);
+                            } else {
+                                const multipleContainer = document.createElement('div');
+                                multipleContainer.className = 'multiple-players';
+                                playersHere.forEach(player => {
+                                    const playerPiece = document.createElement('div');
+                                    playerPiece.className = `player-piece ${player.color}`;
+                                    playerPiece.textContent = player.id;
+                                    multipleContainer.appendChild(playerPiece);
+                                });
+                                cell.appendChild(multipleContainer);
+                            }
+                        }
+                        
+                        board.appendChild(cell);
+                    }
+                }
+            }
+            
+            bindEvents() {
+                document.getElementById('startQuestion').addEventListener('click', () => this.showQuestion());
+                document.getElementById('rollDice').addEventListener('click', () => this.rollDice());
+                document.getElementById('continueBtn').addEventListener('click', () => this.closeQuestionModal());
+            }
+            
+            showQuestion() {
+                if (!this.gameStarted) return;
+                
+                const randomIndex = Math.floor(Math.random() * this.questions.length);
+                this.currentQuestion = this.questions[randomIndex];
+                
+                document.getElementById('questionText').textContent = this.currentQuestion.question;
+                
+                const optionsContainer = document.getElementById('questionOptions');
+                optionsContainer.innerHTML = '';
+                
+                this.currentQuestion.options.forEach((option, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'w-full p-4 text-right bg-gray-100 hover:bg-blue-100 rounded-xl transition-all duration-200 border-2 border-transparent hover:border-blue-300';
+                    button.textContent = option;
+                    button.addEventListener('click', () => this.answerQuestion(index));
+                    optionsContainer.appendChild(button);
+                });
+                
+                document.getElementById('questionModal').classList.remove('hidden');
+                document.getElementById('questionModal').classList.add('flex');
+                document.getElementById('questionFeedback').classList.add('hidden');
+                document.getElementById('questionOptions').classList.remove('hidden');
+            }
+            
+            answerQuestion(selectedIndex) {
+                const currentPlayer = this.getCurrentPlayer();
+                currentPlayer.totalQuestions++;
+                const isCorrect = selectedIndex === this.currentQuestion.correct;
+                
+                if (isCorrect) {
+                    currentPlayer.correctAnswers++;
+                    currentPlayer.score += 10;
+                    this.canRollDice = true;
+                    document.getElementById('feedbackText').textContent = '🎉 إجابة صحيحة! يمكنك الآن رمي النرد!';
+                    document.getElementById('feedbackText').className = 'text-lg font-bold mb-4 text-green-600';
+                    this.showRandomEncouragement();
+                } else {
+                    this.canRollDice = false;
+                    document.getElementById('feedbackText').textContent = '❌ إجابة خاطئة! يجب الإجابة بشكل صحيح لرمي النرد!';
+                    document.getElementById('feedbackText').className = 'text-lg font-bold mb-4 text-red-600';
+                }
+                
+                document.getElementById('explanationText').textContent = this.currentQuestion.explanation;
+                document.getElementById('questionOptions').classList.add('hidden');
+                document.getElementById('questionFeedback').classList.remove('hidden');
+                
+                this.updateStats();
+            }
+            
+            closeQuestionModal() {
+                document.getElementById('questionModal').classList.add('hidden');
+                document.getElementById('questionModal').classList.remove('flex');
+                
+                if (this.canRollDice) {
+                    document.getElementById('startQuestion').style.display = 'none';
+                    document.getElementById('rollDice').style.display = 'inline-block';
+                    this.showEncouragement(`${this.getCurrentPlayer().name} يمكنك الآن رمي النرد! 🎲`);
+                } else {
+                    this.nextPlayer();
+                }
+            }
+            
+            rollDice() {
+                if (!this.canRollDice) return;
+                
+                const diceValue = Math.floor(Math.random() * 6) + 1;
+                document.getElementById('diceResult').textContent = `🎲 ${this.getCurrentPlayer().name} رمى: ${diceValue}`;
+                
+                this.movePlayer(diceValue);
+                
+                setTimeout(() => {
+                    this.nextPlayer();
+                }, 2000);
+            }
+            
+            movePlayer(steps) {
+                const currentPlayer = this.getCurrentPlayer();
+                let newPosition = currentPlayer.position + steps;
+                
+                // Don't go beyond 100
+                if (newPosition > 100) {
+                    newPosition = 100;
+                }
+                
+                currentPlayer.position = newPosition;
+                
+                // Check for snakes and ladders
+                if (this.snakes[newPosition]) {
+                    setTimeout(() => {
+                        currentPlayer.position = this.snakes[newPosition];
+                        this.showEncouragement(`${currentPlayer.name} نزل بالثعبان إلى المربع ${this.snakes[newPosition]}! 🐍`);
+                        this.createBoard();
+                        this.updateStats();
+                    }, 1000);
+                } else if (this.ladders[newPosition]) {
+                    setTimeout(() => {
+                        currentPlayer.position = this.ladders[newPosition];
+                        this.showEncouragement(`${currentPlayer.name} صعد بالسلم إلى المربع ${this.ladders[newPosition]}! 🪜`);
+                        this.createBoard();
+                        this.updateStats();
+                    }, 1000);
+                }
+                
+                // Check for winner
+                if (currentPlayer.position >= 100) {
+                    setTimeout(() => {
+                        this.showWinner(currentPlayer);
+                    }, 1500);
+                }
+                
+                this.createBoard();
+                this.updateStats();
+            }
+            
+            nextPlayer() {
+                this.canRollDice = false;
+                this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+                
+                document.getElementById('startQuestion').style.display = 'inline-block';
+                document.getElementById('rollDice').style.display = 'none';
+                document.getElementById('diceResult').textContent = '';
+                
+                this.updateStats();
+                
+                const nextPlayer = this.getCurrentPlayer();
+                this.showEncouragement(`دور ${nextPlayer.name}! ابدأ بالإجابة على السؤال! 📚`);
+            }
+            
+            showWinner(player) {
+                document.getElementById('winnerText').textContent = `${player.name} فاز باللعبة! 🎉\nالنقاط: ${player.score}\nالإجابات الصحيحة: ${player.correctAnswers}/${player.totalQuestions}`;
+                document.getElementById('winnerModal').classList.remove('hidden');
+                document.getElementById('winnerModal').classList.add('flex');
+                
+                // Add winner animation to player piece
+                const playerPieces = document.querySelectorAll(`.${player.color}`);
+                playerPieces.forEach(piece => {
+                    piece.classList.add('winner-animation');
+                });
+            }
+            
+            updateStats() {
+                if (!this.gameStarted) return;
+                
+                const currentPlayer = this.getCurrentPlayer();
+                document.getElementById('currentPlayerName').textContent = currentPlayer.name;
+                
+                const statsContainer = document.getElementById('playersStats');
+                statsContainer.innerHTML = '';
+                
+                this.players.forEach(player => {
+                    const playerStat = document.createElement('div');
+                    playerStat.className = `p-4 rounded-xl ${player.id === currentPlayer.id ? 'bg-yellow-400/30 border-2 border-yellow-400' : 'bg-white/20'} transition-all duration-200`;
+                    playerStat.innerHTML = `
+                        <div class="text-center">
+                            <div class="w-10 h-10 rounded-full ${player.color} mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg">${player.id}</div>
+                            <div class="font-bold text-sm">${player.name}</div>
+                            <div class="text-xs mt-1">المربع: ${player.position}</div>
+                            <div class="text-xs">النقاط: ${player.score}</div>
+                            <div class="text-xs">صحيح: ${player.correctAnswers}/${player.totalQuestions}</div>
+                        </div>
+                    `;
+                    statsContainer.appendChild(playerStat);
+                });
+            }
+            
+            showRandomEncouragement() {
+                const randomEncouragement = this.encouragements[Math.floor(Math.random() * this.encouragements.length)];
+                this.showEncouragement(randomEncouragement);
+            }
+            
+            showEncouragement(message) {
+                const encouragementElement = document.getElementById('encouragement');
+                encouragementElement.textContent = message;
+                encouragementElement.classList.add('celebration');
+                
+                setTimeout(() => {
+                    encouragementElement.classList.remove('celebration');
+                }, 2000);
+            }
+        }
+        
+        // Global game instance
+        let game;
+        
+        // Start the game when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            game = new SnakesAndLaddersGame();
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'976b34d753c28e29',t:'MTc1NjQ2MTY3OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
